@@ -1,3 +1,7 @@
+#ifndef CU_LIB_HELPERS_CUSP_HELPER
+#define CU_LIB_HELPERS_CUSP_HELPER
+
+
 #include "cuda_helper.h"
 #include "cusparse_v2.h"
 
@@ -12,6 +16,18 @@
         exit(EXIT_FAILURE);                                                 \
     }                                                                       \
 }
+
+
+// utilities for sparse matrix operations
+enum SparseFormat {
+    SPARSE_FORMAT_CSR,
+    SPARSE_FORMAT_COO
+};
+
+enum DenseLayout {
+    DENSE_ROW_MAJOR,
+    DENSE_COL_MAJOR
+};
 
 
 #if CUDA_VERSION < 11000
@@ -81,7 +97,7 @@ struct CusparseCsrmmProblem
             std::cout << "Got nv = " << nv << " but maxNv = " << maxNv << "." << std::endl;
             return -1;
         }
-        hgpu::GpuTimer gpuTimer;
+        GpuTimer gpuTimer;
         if (nv==1) {
             for (int iteration=0; iteration < warmupIters; iteration++) {
                 _bareRunCsrmv();
@@ -116,7 +132,7 @@ struct CusparseCsrmmProblem
     }
 };
 
-#else 
+#else  // CUDA_VERSION < 11000
 struct CusparseSpmmProblem
 {
     cusparseHandle_t handle;
@@ -138,7 +154,7 @@ struct CusparseSpmmProblem
     float *dnInput; // pointer to the dense input matrix of nc*maxNv
     float *dnOutput; // pointer to the dense output matrix of size nr*maxNv
 
-    float *workspace; // the workspace buffer is cleared every time run() or benchmark() finishes.
+    float *workspace=nullptr; // the workspace buffer is cleared every time run() or benchmark() finishes.
 
     CusparseSpmmProblem(int nr, int nc, int nnz, int maxNv, int *rowPtr, int *rowIdx, int *colIdx, float *values, float *dnInput, float *dnOutput): 
     nr(nr), nc(nc), nnz(nnz), maxNv(maxNv), 
@@ -178,6 +194,12 @@ struct CusparseSpmmProblem
 
     }
     // todo: destroy 
+    ~CusparseSpmmProblem() {
+        if (this->workspace != nullptr)
+        {
+            CUDA_CHECK(cudaFree(this->workspace));
+        }
+    }
 
     size_t getWorkspaceSize(SparseFormat format, cusparseSpMVAlg_t alg)
     {
@@ -240,7 +262,7 @@ struct CusparseSpmmProblem
         size_t workspaceSize = getWorkspaceSize(format, alg);
         CUDA_CHECK( cudaMalloc(&workspace, workspaceSize ));
 
-        hgpu::GpuTimer gpuTimer;
+        GpuTimer gpuTimer;
         
         for (int iteration=0; iteration < warmupIters; iteration++) {
              _bareRunSpMV( format, alg );
@@ -415,7 +437,7 @@ bufferSizeError:
         size_t workspaceSize = getWorkspaceSize(format, layout, alg, dnMatInputDescr, dnMatOutputDescr);
         CUDA_CHECK( cudaMalloc(&workspace, workspaceSize ));
 
-        hgpu::GpuTimer gpuTimer;
+        GpuTimer gpuTimer;
         
         for (int iteration=0; iteration < warmupIters; iteration++) {
             _bareRunSpMM(format, dnMatInputDescr, dnMatOutputDescr, alg);
@@ -435,4 +457,6 @@ bufferSizeError:
     }
     
 };
-#endif
+#endif // CUDA_VERSION < 11000
+
+#endif // CU_LIB_HELPERS_CUSP_HELPER

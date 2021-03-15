@@ -1,4 +1,5 @@
-#pragma once 
+#ifndef CU_LIB_HELPERS_CUDA_HELPER
+#define CU_LIB_HELPERS_CUDA_HELPER
 
 #include <stddef.h>
 #include <stdint.h>
@@ -32,8 +33,7 @@
     }                                                                   \
   }
 
-namespace hgpu 
-{
+
 
 // I feel the logic about randomization is wrong....need to think about random seed carefully.
 
@@ -152,7 +152,6 @@ DType* get_host_data() { return host_array.data(); }
 std::vector<DType> &get_host_array() { return host_array; }
 };
 
-
 // credit to cub library.
 struct GpuTimer
 {
@@ -189,77 +188,4 @@ struct GpuTimer
     }
 };
 
-}
-
-/////////////////////////////////////////////
-// Utilities for data loading
-/////////////////////////////////////////////
-// __device__ __forceinline__ float2 ldg_float2(const float* a)
-// {
-//     const float2 *aa = reinterpret_cast<const float2 *>(a);
-//     float2 r = __ldg(aa);
-//     // asm volatile ("ld.global.nc.v2.f32 {%0,%1}, [%2];" :
-//                     // "=f"(r.x), "=f"(r.y) : "l"(a));
-//     return r;
-// }
-// __device__ __forceinline__ float4 ldg_float4(const float* a)
-// {
-//     const float4 *aa = reinterpret_cast<const float4 *>(a);
-//     float4 r = __ldg(aa);
-//     // asm volatile ("ld.global.nc.v4.f32 {%0,%1,%2,%3}, [%4];" :
-//     //                 "=f"(r.x), "=f"(r.y), "=f"(r.z), "=f"(r.w)  : "l"(a));
-//     return r;
-// }
-template<typename T>
-__device__ __forceinline__ void ldg_float(float *r, const float*a)
-{
-    (reinterpret_cast<T *>(r))[0] = *(reinterpret_cast<const T*>(a));
-}
-template<typename T>
-__device__ __forceinline__ void st_float(float *a, float *v)
-{
-    *(T*)a = *(reinterpret_cast<T *>(v));
-}
-// __device__ __forceinline__ void init_float2(float2 r)
-// {
-//     asm volatile ("mov.b32 %0,0;\n mov.b32 %1,0;" : "=f"(r.x), "=f"(r.y));
-// }
-// __device__ __forceinline__ void init_float4(float4 r)
-// {
-//     asm volatile ("mov.b32 %0,0;\n mov.b32 %1,0;\n mov.b32 %0,0;\n mov.b32 %1,0;" 
-//     : "=f"(r.x), "=f"(r.y), "=f"(r.z), "=f"(r.w));
-// }
-// __device__ __forceinline__ void st_float2(float *a, float2 v)
-// {
-//     *(float2*)a = v;
-// }
-// __device__ __forceinline__ void st_float4(float *a, float4 v)
-// {
-//     *(float4*)a = v;
-// }
-__device__ __forceinline__ void mac_float2(float4 c, const float a, const float2 b)
-{
-    c.x += a * b.x ; c.y += a * b.y ;
-}
-__device__ __forceinline__ void mac_float4(float4 c, const float a, const float4 b)
-{
-    c.x += a * b.x ; c.y += a * b.y ; c.z += a * b.z ; c.w += a * b.w ; 
-}
-
-
-//////////////////////////////////////////////
-// specialization for spmvspmm
-//////////////////////////////////////////////
-
-// utilities for sparse matrix operations
-enum SparseFormat {
-    SPARSE_FORMAT_CSR,
-    SPARSE_FORMAT_COO
-};
-
-enum DenseLayout {
-    DENSE_ROW_MAJOR,
-    DENSE_COL_MAJOR
-};
-
-#include "../src/common.hpp"
+#endif // CU_LIB_HELPERS_CUDA_HELPER
